@@ -1,0 +1,22 @@
+rce_benchmark.csv
+local_benchmark.csv
+Section 1/tests/large-1000x1000/matrix_a.txt
+Section 1/tests/large-1000x1000/matrix_b.txt
+Section 1/tests/large-1000x1000/expected.txt
+Section 1/tests/large-1000x1000/actual.txt
+*.exe
+*.o
+*.obj
+
+result.txt
+result_*.txt
+map_*.out
+chunk_*
+shuf_*.out
+comb_*.out
+global_shuf*.out
+
+perf_results/
+
+__pycache__/
+*.pyc
