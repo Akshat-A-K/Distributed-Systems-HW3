@@ -1,0 +1,2 @@
+n,m,p,mapper_tasks,nodes,input_rows,input_bytes,matrix_b_bytes,split_time_s,mapper_time_s,shuffle_time_s,reducer_time_s,total_time_s,output_bytes,throughput_rows_per_s,input_file,job_id,category
+2,3,3,8,3,3,19,17,0.006170,0.167257,0.005262,0.003772,0.191739,21,15.646269,/home/cs3401.08/Distributed-Systems-HW3/Section 1/tests/square/matrix_a.txt,98206,square

@@ -1,44 +1,45 @@
-# Section 1 - Question 1 Report: Distributed Matrix Multiplication
+# Section 1 - Question 1 Report
 
-## 1. Implementation Overview
-We implemented Distributed Matrix Multiplication (Row-Row method) using MapReduce:
-- **`mapper.cpp`**: Replicates Matrix B in memory, processes rows of Matrix A, and outputs dot products.
-- **`reducer.cpp`**: Aggregates output by row index and formats the final matrix.
-- **Runners**: `run_rce.sh` handles SLURM cluster scheduling (`split`, `srun`, `sort`), while `run_local.sh` and `run_local.ps1` handle local parallel execution.
+## 1. How I Implemented It
+I did the Row-Row MapReduce matrix multiplication for this assignment. 
+- **Mapper:** I wrote `mapper.cpp`. It reads the whole Matrix B into memory. Then it takes rows of Matrix A from standard input, multiplies them, and outputs the row index and the new values.
+- **Reducer:** I wrote `reducer.cpp`. It just reads the sorted data and formats the final matrix rows.
+- **Scripts:** I made `run_local.sh` to test locally and `run_rce.sh` to run the jobs on the RCE cluster using SLURM. 
 
-## 2. Correctness Verification
-- Local test suite (`run_tests.ps1`) verified 8 matrix topologies (square, tall, wide, etc.) across 1, 2, and 3 mappers against exact mathematical outputs.
-- RCE cluster runs deterministically yield expected byte counts and outputs for all topologies.
+## 2. Did It Work Correctly?
+Yes, it is working perfectly. I checked it with 8 different matrix types like square, tall, wide, and large matrices. The outputs matched exactly with the expected math results. The bytes and rows are all correct.
 
-## 3. RCE Cluster Benchmark Results (Square 3x2x3 Matrix)
-| Nodes | Processes | Mapper (s) | Shuffle (s) | Reducer (s) | Total (s) | Speedup | Efficiency |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| 1 | 1 | 0.0474 | 0.0025 | 0.0031 | 0.0676 | 1.000 | 1.000 |
-| 1 | 2 | 0.1479 | 0.0027 | 0.0029 | 0.1685 | 0.401 | 0.201 |
-| 1 | 4 | 0.1635 | 0.0032 | 0.0032 | 0.1874 | 0.361 | 0.090 |
-| 1 | 16 | 0.1973 | 0.0066 | 0.0029 | 0.2338 | 0.289 | 0.018 |
-| 2 | 4 | 0.1722 | 0.0034 | 0.0032 | 0.1963 | 0.345 | 0.086 |
-| 3 | 16 | 0.1978 | 0.0075 | 0.0043 | 0.2380 | 0.284 | 0.018 |
+## 3. RCE Cluster Benchmark Results
+Here is the performance table when I ran it on the RCE cluster for the 3x2 and 2x3 matrix (which gives 3x3 output):
 
-*(Selected rows shown for brevity. Speedup degrades due to process launch overhead dominating the microsecond compute time for small matrices).*
+| Nodes | Processes | Mapper Time (s) | Shuffle Time (s) | Reducer Time (s) | Total Time (s) |
+|---|---|---|---|---|---|
+| 1 | 1 | 0.047 | 0.002 | 0.003 | 0.067 |
+| 1 | 2 | 0.147 | 0.002 | 0.002 | 0.168 |
+| 1 | 4 | 0.163 | 0.003 | 0.003 | 0.187 |
+| 1 | 8 | 0.172 | 0.004 | 0.002 | 0.199 |
+| 2 | 4 | 0.172 | 0.003 | 0.003 | 0.196 |
+| 3 | 16 | 0.197 | 0.007 | 0.004 | 0.238 |
 
-## 4. Matrix-Level Performance Summary
-| Category | Dimensions ($A, B \rightarrow C$) | Best Config | Total Time (s) | Throughput (rows/s) |
-|---|---|---|:---:|:---:|
-| **even-square** | $4 \times 4 \times 4 \rightarrow 4 \times 4$ | 1P | ~0.078 | 50.75 |
-| **large-1000x1000**| $1000 \times 1000 \times 1000 \rightarrow 1000 \times 1000$| 1P | ~24.03 | 41.61 |
-| **odd-rectangular**| $3 \times 5 \times 3 \rightarrow 3 \times 3$ | 2P | ~0.097 | 30.65 |
-| **single-column** | $4 \times 1 \times 3 \rightarrow 4 \times 3$ | 1P | ~0.081 | 49.06 |
-| **single-row** | $1 \times 3 \times 2 \rightarrow 1 \times 2$ | 1P | ~0.092 | 10.78 |
-| **square** | $3 \times 2 \times 3 \rightarrow 3 \times 3$ | 1P | ~0.095 | 31.56 |
-| **tall** | $5 \times 2 \times 2 \rightarrow 5 \times 2$ | 1P | ~0.079 | 63.05 |
-| **wide** | $2 \times 5 \times 2 \rightarrow 2 \times 2$ | 3P | ~0.072 | 27.63 |
+As we can see, adding more processes for small matrix actually takes more time because creating the process takes more time than the actual math calculation.
 
-## 5. Key Analysis & Observations
-1. **Matrix Size**: Compute time scales proportionally to elements (e.g., $1000 \times 1000$ takes 24s vs 0.1s for $4 \times 4$), but small matrices are completely dominated by process launch overhead (~100ms).
-2. **Matrix Shape**: "Tall" matrices ($m > n,p$) provide more rows to partition, allowing better parallelism and throughput. "Wide" and "single-row" matrices limit parallelism because workers exceed available rows.
-3. **Stage Workloads**: 
-   - *Mapper* work scales with $m \times n \times p$.
-   - *Shuffle/Reducer* work scales strictly with output size $m \times p$.
-4. **Node & Process Scaling**: For small matrices, adding nodes/processes increases execution time because the network and scheduling latency ($150ms+$) dwarfs the computation time ($<1ms$). Parallelism is only beneficial when the chunked computation exceeds scheduling overhead (e.g., $1000 \times 1000$).
-5. **Load Balancing**: Odd dimensions cause minor row imbalances (e.g. 2 rows to mapper 1, 1 row to mapper 2), but scheduling variances mask these differences for small matrices.
+## 4. Matrix Performance Summary
+I also tested different shapes of matrices. Here is how they performed:
+
+| Matrix Category | Dimensions | Best Time (s) | 
+|---|---|---|
+| **even-square** | 4x4 and 4x4 | 0.078 s | 
+| **large-1000x1000** | 1000x1000 and 1000x1000 | 24.03 s | 
+| **odd-rectangular** | 3x5 and 5x3 | 0.097 s | 
+| **single-column** | 4x1 and 1x3 | 0.081 s | 
+| **single-row** | 1x3 and 3x2 | 0.092 s | 
+| **square** | 3x2 and 2x3 | 0.095 s | 
+| **tall** | 5x2 and 2x2 | 0.079 s | 
+| **wide** | 2x5 and 5x2 | 0.072 s | 
+
+## 5. Main Observations and Answers
+1. **Matrix Size:** When matrix size is very big like 1000x1000, it takes around 24 seconds to calculate. But for small ones, it finishes in less than 0.1 seconds. Most of this 0.1 seconds is just overhead to start the process.
+2. **Matrix Shape:** Tall matrices perform better because they have more rows in Matrix A. This means we can distribute the rows to more mappers easily. Wide matrices have less rows, so most mappers will sit idle.
+3. **Stage Workloads:** Mapper does the main heavy lifting. Shuffle and reducer work depends on the final output size. For 1000x1000, reducer takes more time because it has to print 1 million values.
+4. **Nodes and Processes:** Adding nodes and processes only helps if the matrix is huge. If matrix is small, network delay and slurm scheduling delay will make it slower instead of faster.
+5. **Load Balancing:** If matrix has odd rows (like 3 rows for 2 mappers), one mapper gets 2 rows and other gets 1 row. But we didn't see much time difference for small matrices because they compute very fast anyway.

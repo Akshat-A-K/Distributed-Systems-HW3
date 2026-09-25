@@ -1,0 +1,2 @@
+n,m,p,mapper_tasks,nodes,input_rows,input_bytes,matrix_b_bytes,split_time_s,mapper_time_s,shuffle_time_s,reducer_time_s,total_time_s,output_bytes,throughput_rows_per_s,input_file,job_id,category
+5,3,3,4,2,3,39,36,0.003217,0.177774,0.003295,0.002993,0.192632,21,15.573736,/home/cs3401.08/Distributed-Systems-HW3/Section 1/tests/odd-rectangular/matrix_a.txt,98257,odd-rectangular
