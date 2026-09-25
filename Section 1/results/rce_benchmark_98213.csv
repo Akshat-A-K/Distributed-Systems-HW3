@@ -1,2 +1,0 @@
-n,m,p,mapper_tasks,nodes,input_rows,input_bytes,matrix_b_bytes,split_time_s,mapper_time_s,shuffle_time_s,reducer_time_s,total_time_s,output_bytes,throughput_rows_per_s,input_file,job_id,category
-2,5,2,8,2,5,32,12,0.005761,0.196304,0.005247,0.003559,0.219607,25,22.767945,/home/cs3401.08/Distributed-Systems-HW3/Section 1/tests/tall/matrix_a.txt,98213,tall

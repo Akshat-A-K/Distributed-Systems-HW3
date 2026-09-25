@@ -211,13 +211,7 @@ run_single_matrix_benchmark() {
     local HEADER="n,m,p,mapper_tasks,nodes,input_rows,input_bytes,matrix_b_bytes,split_time_s,mapper_time_s,shuffle_time_s,reducer_time_s,total_time_s,output_bytes,throughput_rows_per_s,input_file,job_id,category"
     local DATA_ROW="$N,$M,$P,$tasks,$node_count,$M,$A_BYTES,$B_BYTES,$SPLIT_SECONDS,$MAPPER_SECONDS,$SHUFFLE_SECONDS,$REDUCER_SECONDS,$TOTAL_SECONDS,$OUTPUT_BYTES,$THROUGHPUT,$a_file,$job_id,$cat_name"
 
-    # Append to combined benchmark file
-    if [ ! -f "$bench_file" ]; then
-        echo "$HEADER" > "$bench_file"
-    fi
-    echo "$DATA_ROW" >> "$bench_file"
-
-    # Also write category-specific benchmark file
+    # Write benchmark file per category and job
     echo "$HEADER" > "$cat_bench_file"
     echo "$DATA_ROW" >> "$cat_bench_file"
 

@@ -1,2 +1,0 @@
-n,m,p,mapper_tasks,nodes,input_rows,input_bytes,matrix_b_bytes,split_time_s,mapper_time_s,shuffle_time_s,reducer_time_s,total_time_s,output_bytes,throughput_rows_per_s,input_file,job_id,category
-1000,1000,1000,2,1,1000,2003890,2000010,0.039707,1.040397,0.026048,0.155802,1.266174,2000000,789.780867,/home/cs3401.08/Distributed-Systems-HW3/Section 1/tests/large-1000x1000/matrix_a.txt,98262,large-1000x1000

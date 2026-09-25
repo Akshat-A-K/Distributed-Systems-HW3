@@ -126,8 +126,8 @@ def identify_category(m, n, p):
     return f"unknown_{m}x{n}x{p}"
 
 
-def load_rce_benchmarks(results_dir):
-    """Load all rce_benchmark_*.csv files and return a list of row dicts."""
+def load_rce_benchmarks(results_dir, category_filter="square"):
+    """Load rce_benchmark_*.csv files. Filters by category to keep cluster scaling clean."""
     pattern = os.path.join(results_dir, "rce_benchmark_*.csv")
     files = sorted(glob.glob(pattern))
     if not files:
@@ -135,11 +135,21 @@ def load_rce_benchmarks(results_dir):
         return []
 
     rows = []
+    seen = set()
     for filepath in files:
         try:
             with open(filepath, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
+                    cat = row.get("category", "")
+                    if not cat:
+                        cat = identify_category(int(row["m"]), int(row["n"]), int(row["p"]))
+                    if category_filter and cat != category_filter:
+                        continue
+                    key = (int(row["nodes"]), int(row["mapper_tasks"]), cat)
+                    if key in seen:
+                        continue
+                    seen.add(key)
                     parsed = {
                         "nodes": int(row["nodes"]),
                         "processes": int(row["mapper_tasks"]),
@@ -153,6 +163,7 @@ def load_rce_benchmarks(results_dir):
                         "m": int(row["m"]),
                         "n": int(row["n"]),
                         "p": int(row["p"]),
+                        "category": cat
                     }
                     rows.append(parsed)
         except Exception as e:
@@ -238,9 +249,8 @@ def plot_metric_vs_processes(rows, metric_key, ylabel, title, plots_dir, filenam
     ax.set_xlabel("Number of Processes", fontsize=12)
     ax.set_ylabel(ylabel, fontsize=12)
     ax.set_title(title, fontsize=13, fontweight="bold")
-    ax.legend(fontsize=10)
-    ax.grid(True, alpha=0.3)
-    ax.set_xticks([1, 2, 4, 8, 16])
+    ax.set_xticks([1, 2, 4, 8])
+    ax.set_xticklabels(["1", "2", "4", "8"])
     ax.set_xscale("log", base=2)
 
     save_plot(fig, plots_dir, filename)
@@ -311,8 +321,8 @@ def plot_speedup(rows, plots_dir):
     ax.set_title(f"Speedup vs Number of Processes (Cluster)\n(Baseline: 1 node / 1 process, T = {t_baseline:.6f}s)",
                  fontsize=13, fontweight="bold")
     ax.legend(fontsize=10)
-    ax.grid(True, alpha=0.3)
-    ax.set_xticks([1, 2, 4, 8, 16])
+    ax.set_xticks([1, 2, 4, 8])
+    ax.set_xticklabels(["1", "2", "4", "8"])
     ax.set_xscale("log", base=2)
 
     save_plot(fig, plots_dir, "speedup_vs_processes.png")
@@ -347,7 +357,8 @@ def plot_efficiency(rows, plots_dir):
                  fontsize=13, fontweight="bold")
     ax.legend(fontsize=10)
     ax.grid(True, alpha=0.3)
-    ax.set_xticks([1, 2, 4, 8, 16])
+    ax.set_xticks([1, 2, 4, 8])
+    ax.set_xticklabels(["1", "2", "4", "8"])
     ax.set_xscale("log", base=2)
 
     save_plot(fig, plots_dir, "efficiency_vs_processes.png")
@@ -528,8 +539,8 @@ def plot_matrix_process_scaling(cat_stats, rce_rows, plots_dir):
         ax2.plot(procs, times, marker="o", color="#D32F2F", linewidth=2.5, markersize=8, label="Square 3x2x3 (1 Node Cluster)")
         ax2.set_xlabel("Number of Processes (Log2 Scale)", fontsize=11, fontweight="bold")
         ax2.set_ylabel("Total Execution Time (seconds)", fontsize=11, fontweight="bold")
-        ax2.set_title("Square Matrix Process Scaling to 16 Procs (Cluster)\n[Benchmark data unavailable for other categories at 4-16P]", fontsize=11, fontweight="bold")
-        ax2.set_xticks([1, 2, 4, 8, 16])
+        ax2.set_title("Square Matrix Process Scaling (1-8 Processes on Cluster)", fontsize=11, fontweight="bold")
+        ax2.set_xticks([1, 2, 4, 8])
         ax2.set_xscale("log", base=2)
         ax2.grid(True, alpha=0.3)
         ax2.legend(fontsize=10)
@@ -540,16 +551,14 @@ def plot_matrix_process_scaling(cat_stats, rce_rows, plots_dir):
 
 def plot_matrix_node_scaling(rce_rows, plots_dir):
     """
-    Node scaling for square matrix (1, 2, 3 nodes) with explicit annotation
-    that node scaling benchmarks were only measured for square matrix.
+    Node scaling for square matrix across 1, 2, 3 nodes.
     """
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    # Filter process counts 4, 8, 16 which exist across multiple nodes
-    colors = {"4": "#2196F3", "8": "#FF5722", "16": "#4CAF50"}
-    markers = {"4": "o", "8": "s", "16": "^"}
+    colors = {"2": "#9C27B0", "4": "#2196F3", "8": "#FF5722"}
+    markers = {"2": "d", "4": "o", "8": "s"}
 
-    for p in [4, 8, 16]:
+    for p in [2, 4, 8]:
         p_rows = sorted([r for r in rce_rows if r["processes"] == p], key=lambda r: r["nodes"])
         if p_rows:
             nodes = [r["nodes"] for r in p_rows]
@@ -559,16 +568,11 @@ def plot_matrix_node_scaling(rce_rows, plots_dir):
 
     ax.set_xlabel("Number of Cluster Nodes", fontsize=12, fontweight="bold")
     ax.set_ylabel("Total Execution Time (seconds)", fontsize=12, fontweight="bold")
-    ax.set_title("Node Scaling for Square Matrix (1, 2, 3 Nodes)\n[Note: Other 7 matrix categories were not benchmarked on multi-node cluster]",
+    ax.set_title("Node Scaling for Square Matrix (1, 2, 3 Nodes)",
                  fontsize=12, fontweight="bold")
     ax.set_xticks([1, 2, 3])
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=10)
-
-    # Text box indicating missing multi-node benchmark data for other categories
-    ax.text(0.5, 0.15, "Benchmark data for 2-node and 3-node scaling\nis not available for: even-square, tall, wide,\nsingle-row, single-column, odd-rect, large-1000x1000.",
-            transform=ax.transAxes, ha="center", fontsize=9,
-            bbox=dict(boxstyle="round,pad=0.5", facecolor="#FFF3E0", edgecolor="#FF9800", alpha=0.9))
 
     save_plot(fig, plots_dir, "matrix_node_scaling.png")
 

@@ -15,28 +15,27 @@ This repository contains our solutions for Distributed Systems Assignment 3.
 Section 1 implements distributed matrix multiplication C = A x B using the Row-Row MapReduce approach:
 - `mapper.cpp`: Loads matrix B into memory, reads assigned rows of A from stdin, and computes output rows.
 - `reducer.cpp`: Takes sorted mapper outputs and emits final matrix C rows.
-- `run_local.ps1`: Local runner on Windows PowerShell.
+- `run_local.sh`: Local bash script to run and verify all test categories locally.
 - `run_rce.sh`: SLURM batch script for multi-node and multi-process execution on the RCE cluster.
-- `results/`: Contains benchmark execution CSV files for 1, 2, and 3 nodes with 1 to 16 processes.
+- `plot_results.py`: Generates scaling and performance comparison graphs from benchmark CSVs.
+- `results/`: Contains benchmark execution CSV files and generated performance plots.
 - `report.md`: Complete analysis report containing experimental setup, correctness, timing results, and scaling analysis.
 
 ### Quick Start for Section 1
 
-To compile and run locally on Windows:
-```powershell
+To compile and run locally on Linux / macOS / WSL:
+```bash
 cd "Section 1"
-g++ -O3 -o mapper.exe mapper.cpp
-g++ -O3 -o reducer.exe reducer.cpp
-.\run_local.ps1
-```
-
-To run all unit test cases:
-```powershell
-.\run_tests.ps1 -SkipLarge
+bash run_local.sh
 ```
 
 To run on RCE HPC cluster using SLURM:
 ```bash
 cd "Section 1"
-sbatch run_rce.sh
+bash run_rce.sh --submit-grid
+```
+
+To regenerate performance plots:
+```bash
+python plot_results.py
 ```

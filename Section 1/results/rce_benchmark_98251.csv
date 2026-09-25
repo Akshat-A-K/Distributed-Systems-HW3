@@ -1,2 +1,0 @@
-n,m,p,mapper_tasks,nodes,input_rows,input_bytes,matrix_b_bytes,split_time_s,mapper_time_s,shuffle_time_s,reducer_time_s,total_time_s,output_bytes,throughput_rows_per_s,input_file,job_id,category
-4,4,4,8,3,4,42,36,0.006989,0.202233,0.005975,0.004290,0.228073,36,17.538244,/home/cs3401.08/Distributed-Systems-HW3/Section 1/tests/even-square/matrix_a.txt,98251,even-square

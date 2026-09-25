@@ -26,8 +26,15 @@ bash run_local.sh
 It will compile the cpp files and test all the matrix categories.
 
 ## How to run on RCE cluster
-If you are on the RCE cluster, you can submit the benchmark grid which tests all configurations (nodes 1, 2, 3 and processes 1, 2, 4, 8) for all matrix types:
+To run all benchmark configurations across all matrix categories on the cluster:
 ```bash
 bash run_rce.sh --submit-grid
 ```
-All the results will be saved in the `results` folder.
+All outputs are saved to `results/`.
+
+## How to generate plots
+To regenerate all 19 performance plots from the CSV benchmarks:
+```bash
+python plot_results.py
+```
+Plots are automatically saved into `results/plots/`.
