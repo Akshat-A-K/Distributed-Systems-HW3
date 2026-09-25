@@ -1,5 +1,3 @@
-rce_benchmark.csv
-local_benchmark.csv
 Section 1/tests/large-1000x1000/matrix_a.txt
 Section 1/tests/large-1000x1000/matrix_b.txt
 Section 1/tests/large-1000x1000/expected.txt
