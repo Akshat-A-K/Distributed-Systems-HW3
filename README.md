@@ -45,7 +45,6 @@ Section 3 implements Problem 1: a multi-user collaborative document editing syst
 - `document.proto`: Service definition for creating, retrieving, editing documents, and streaming real-time updates.
 - `server.py`: Central gRPC server managing in-memory documents, thread-safe synchronization for concurrent edits, and streaming subscriber queues.
 - `client.py`: Multi-threaded interactive CLI client with background update listening.
-- `bugs_fixes.md`: Record of edge case verification and testing results.
 - `README.md`: Detailed instructions and multi-client demonstration walkthrough.
 
 ### Quick Start for Section 3
