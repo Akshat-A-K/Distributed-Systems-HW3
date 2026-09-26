@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+service DocumentService {
+  rpc CreateDocument(CreateDocumentRequest) returns (CreateDocumentResponse);
+  rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
+  rpc EditDocument(EditDocumentRequest) returns (EditDocumentResponse);
+  rpc SubscribeToUpdates(UpdateRequest) returns (stream DocumentUpdate);
+}
+
+message CreateDocumentRequest {
+  string name = 1;
+  string initial_content = 2;
+}
+
+message CreateDocumentResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetDocumentRequest {
+  string name = 1;
+}
+
+message GetDocumentResponse {
+  bool success = 1;
+  string content = 2;
+  string message = 3;
+}
+
+message EditDocumentRequest {
+  string name = 1;
+  int32 position = 2;
+  string text = 3;
+}
+
+message EditDocumentResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UpdateRequest {
+  string name = 1;
+}
+
+message DocumentUpdate {
+  string name = 1;
+  string content = 2;
+}
