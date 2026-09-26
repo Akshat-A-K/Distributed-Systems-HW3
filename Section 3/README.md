@@ -9,7 +9,6 @@ This project is a multi-user collaborative text document editing system built us
 - client.py: The interactive command-line interface (CLI) for users to interact with the server.
 - document_pb2.py: Generated Python code for protocol buffer messages.
 - document_pb2_grpc.py: Generated Python code for gRPC client stubs and server servicers.
-- bugs_fixes.md: Log of bugs checked during final verification.
 - report.md: Project report explaining architecture, synchronization, and demonstration results.
 
 ## Requirements
