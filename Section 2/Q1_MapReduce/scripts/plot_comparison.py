@@ -11,6 +11,11 @@ Data sources:
     github.com/Akshat-A-K/Distriubuted-Systems-HW2, HW2/Q8/results/),
     hardcoded below verbatim from that file -- not re-derived or estimated.
 
+Terminology note: real Hadoop/YARN was not executed for this benchmark (see
+README's "Hadoop execution" section for why) -- every "MapReduce" series
+below is the SLURM-based substitute pipeline (mapper -> shuffle/sort ->
+reducer -> finalize.py), labeled as such throughout, never as "Hadoop".
+
 Usage: python3 scripts/plot_comparison.py [--out-dir results/plots]
 """
 
@@ -56,44 +61,50 @@ def main():
     sizes = [10000, 100000, 1000000]
 
     # --- Plot 1: wall time vs task count, one panel per size ---
-    fig, axes = plt.subplots(1, len(sizes), figsize=(15, 4.5), sharey=False)
-    fig.suptitle("HW2 MPI vs. this project's Slurm-substitute MapReduce (single node, RCE)")
+    fig, axes = plt.subplots(1, len(sizes), figsize=(16, 4.8), sharey=False)
+    fig.suptitle(
+        "Wall-Clock Time vs. Task Count: MPI (HW2) vs. MapReduce SLURM-Based Substitute (Q1)\n"
+        "Single node, RCE cluster",
+        fontsize=12,
+    )
     for ax, n in zip(axes, sizes):
         mpi_y = [HW2_MPI[(n, p)] for p in task_counts]
         q1_y = [q1[(n, m)] for m in task_counts if (n, m) in q1]
-        ax.plot(task_counts, mpi_y, "o-", label="HW2 MPI", color="tab:blue")
+        ax.plot(task_counts, mpi_y, "o-", label="MPI (HW2)", color="tab:blue")
         if q1_y:
-            ax.plot(task_counts, q1_y, "s--", label="Q1 Slurm-substitute", color="tab:orange")
-        ax.axhline(HW2_SEQUENTIAL[n], color="gray", linestyle=":", label="HW2 sequential")
-        ax.set_title(f"{n:,} records")
-        ax.set_xlabel("P (MPI ranks) / M (mapper chunks)")
+            ax.plot(task_counts, q1_y, "s--", label="MapReduce (SLURM-based substitute)", color="tab:orange")
+        ax.axhline(HW2_SEQUENTIAL[n], color="gray", linestyle=":", label="Sequential baseline (HW2)")
+        ax.set_title(f"N = {n:,} records")
+        ax.set_xlabel("Task Count\n(MPI ranks / mapper chunks)")
         ax.set_xticks(task_counts)
         ax.set_yscale("log")
         ax.grid(True, which="both", alpha=0.3)
         if ax is axes[0]:
-            ax.set_ylabel("Wall time (s, log scale)")
-        ax.legend(fontsize=8)
+            ax.set_ylabel("Wall-Clock Time (seconds, log scale)")
+        ax.legend(fontsize=8, loc="best")
     fig.tight_layout()
     fig.savefig(os.path.join(args.out_dir, "runtime_comparison.png"), dpi=150)
     plt.close(fig)
 
     # --- Plot 2: each system's own task-count scaling ratio (M or P vs 1) ---
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=(7.5, 5.5))
     for n in sizes:
         mpi_ratio = [HW2_MPI[(n, p)] / HW2_MPI[(n, 1)] for p in task_counts]
-        ax.plot(task_counts, mpi_ratio, "o-", label=f"MPI, {n:,} rec")
+        ax.plot(task_counts, mpi_ratio, "o-", label=f"MPI (HW2) -- N={n:,}")
     ax.set_prop_cycle(None)
     for n in sizes:
         if all((n, m) in q1 for m in task_counts):
             q1_ratio = [q1[(n, m)] / q1[(n, 1)] for m in task_counts]
-            ax.plot(task_counts, q1_ratio, "s--", label=f"Q1 substitute, {n:,} rec")
-    ax.axhline(1.0, color="gray", linestyle=":")
-    ax.set_xlabel("P / M")
-    ax.set_ylabel("Wall time relative to P=1 / M=1")
+            ax.plot(task_counts, q1_ratio, "s--", label=f"MapReduce substitute -- N={n:,}")
+    ax.axhline(1.0, color="gray", linestyle=":", label="No overhead (ratio = 1.0)")
+    ax.set_xlabel("Task Count (MPI ranks / mapper chunks)")
+    ax.set_ylabel("Wall-Clock Time, Relative to Task Count = 1")
     ax.set_xticks(task_counts)
-    ax.set_title("Task-count overhead: neither system speeds up (ratio > 1 = slower)")
+    ax.set_title(
+        "Relative Overhead vs. Task Count\n(values above 1.0 indicate slower than a single task)"
+    )
     ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=7, ncol=2)
+    ax.legend(fontsize=7.5, ncol=2, loc="upper left")
     fig.tight_layout()
     fig.savefig(os.path.join(args.out_dir, "task_count_overhead.png"), dpi=150)
     plt.close(fig)
