@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package hw3q8;
+
+// HW3 Section 2 Q2 -- real-time streaming re-implementation of HW2 Q8
+// (weather/environmental analytics). Minimum required surface per the
+// assignment: streaming ingestion of records, and queries for the current
+// analytics. Reset is an extra RPC used by the benchmark/correctness
+// scripts to reconfigure a running server without restarting the process.
+service WeatherAnalytics {
+  // Client-streaming ingestion: the first message on the stream MUST be a
+  // DatasetHeader, every message after that a RecordBatch. Returns only
+  // after every record already sent on this stream has been applied (a
+  // drain barrier on the server), so a query issued right after this
+  // returns is guaranteed to see the whole stream.
+  rpc StreamRecords(stream IngestMessage) returns (IngestSummary);
+
+  // Unary: safe to call at any time, including while ingestion is active.
+  rpc GetAnalytics(AnalyticsRequest) returns (AnalyticsSnapshot);
+
+  // Reconfigures worker count / partition strategy. Rejected (FAILED
+  // status) if a stream is currently active.
+  rpc Reset(ResetRequest) returns (ResetResponse);
+}
+
+message DatasetHeader {
+  int64 n = 1;
+  int32 k = 2;
+  int64 s = 3;
+}
+
+message Record {
+  int64 timestamp = 1;
+  int32 station_id = 2;
+  double temperature = 3;
+  double humidity = 4;
+  double pressure = 5;
+  double rainfall = 6;
+  double wind_speed = 7;
+}
+
+message RecordBatch {
+  uint64 seq = 1;
+  repeated Record records = 2;
+}
+
+message IngestMessage {
+  oneof payload {
+    DatasetHeader header = 1;
+    RecordBatch batch = 2;
+  }
+}
+
+message IngestSummary {
+  int64 records_received = 1;
+  double server_elapsed_s = 2;  // first message received -> drain complete
+  double cpu_user_s = 3;        // server process CPU time consumed during this stream
+  double cpu_sys_s = 4;
+}
+
+message AnalyticsRequest {
+  int32 top_k = 1;  // 0 = use K from the stream's header
+}
+
+message Measurement {
+  double temperature = 1;
+  int32 station_id = 2;
+  int64 timestamp = 3;
+}
+
+message StationStat {
+  int32 station_id = 1;
+  int64 count = 2;
+  double average_temperature = 3;
+  double total_rainfall = 4;
+}
+
+message WorkerStatus {
+  int32 worker_id = 1;
+  int64 records_applied = 2;
+  int32 queue_depth = 3;
+  double busy_s = 4;
+}
+
+message SystemStatus {
+  int64 records_received = 1;
+  int64 records_applied = 2;
+  int64 expected_records = 3;
+  int32 active_streams = 4;
+  int32 completed_streams = 5;
+  bool ingestion_complete = 6;
+  int32 num_workers = 7;
+  string partition = 8;
+  int32 dataset_k = 9;
+  repeated WorkerStatus workers = 10;
+  double query_compute_ms = 11;
+}
+
+message AnalyticsSnapshot {
+  bool has_data = 1;
+  int64 total_measurements = 2;
+  double average_temperature = 3;
+  double min_temperature = 4;
+  double max_temperature = 5;
+  double average_humidity = 6;
+  double min_humidity = 7;
+  double max_humidity = 8;
+  double average_pressure = 9;
+  double min_pressure = 10;
+  double max_pressure = 11;
+  double total_rainfall = 12;
+  double max_rainfall = 13;
+  double average_wind_speed = 14;
+  double max_wind_speed = 15;
+  int64 extreme_temperature_events = 16;
+  Measurement hottest = 17;
+  Measurement coldest = 18;
+  int64 busiest_interval = 19;
+  int64 busiest_interval_count = 20;
+  repeated StationStat top_stations = 21;
+  SystemStatus status = 22;
+}
+
+message ResetRequest {
+  int32 num_workers = 1;  // 0 = keep current
+  string partition = 2;   // "" = keep current
+}
+
+message ResetResponse {
+  int32 num_workers = 1;
+  string partition = 2;
+}

@@ -1,0 +1,63 @@
+HW3 Section 2 Q2 -- live 2-node demonstration, RCE salloc job 99440 (nodes node06/node07)
+Confirms the TA's explicit requirement ("Run client and servers on diff nodes",
+"We expect atleast 2 nodes") with a real, observed run -- not just a configured option.
+
+Setup:
+  Terminal A (node06): src/server.py --host 0.0.0.0 --port 50051 --workers 4
+  Terminal B (node07): src/dashboard.py node06:50051 --interval 0.5
+  Terminal C (node07): src/stream_client.py node06:50051 data/generated/gen_n1000000_k5_s100_seed42.txt --batch-size 1000 --rate 200000
+
+Server startup (node06):
+  WeatherAnalytics server listening on 0.0.0.0:50051 (workers=4 partition=station)
+
+Streaming client result (node07 -> node06, real cross-node gRPC over the cluster network):
+  Streamed 1000000 records to node06:50051 (batch_size=1000 rate=200000.0 preload=False)
+    client end-to-end: 5.0049s  throughput: 199802.7 rec/s
+    server elapsed:    5.0042s  cpu(user+sys): 2.4301s
+
+Dashboard final state (node07, polling node06 live throughout ingestion):
+  HW3 Q2 . Streaming Weather Analytics   server=node06:50051   01:38:25   query 1.7 ms
+  Ingestion: 1000000/1000000 applied (100.0%) [##############################]  backlog 0
+  Streams: 0 active / 1 completed   Workers: 4 (partition=station)   K=5
+    w0 249857 rec  queue 0  busy 0.37s
+    w1 249949 rec  queue 0  busy 0.36s
+    w2 250268 rec  queue 0  busy 0.36s
+    w3 249926 rec  queue 0  busy 0.37s
+  -----------------------------------------------------------------
+  TOTAL_MEASUREMENTS 1000000
+  AVERAGE_TEMPERATURE 19.980262
+  MIN_TEMPERATURE -10.000000
+  MAX_TEMPERATURE 50.000000
+  AVERAGE_HUMIDITY 55.016653
+  MIN_HUMIDITY 10.000000
+  MAX_HUMIDITY 100.000000
+  AVERAGE_PRESSURE 1000.022935
+  MIN_PRESSURE 950.000000
+  MAX_PRESSURE 1050.000000
+  TOTAL_RAINFALL 25013263.580000
+  MAX_RAINFALL 50.000000
+  AVERAGE_WIND_SPEED 60.024737
+  MAX_WIND_SPEED 120.000000
+  EXTREME_TEMPERATURE_EVENTS 333235
+  HOTTEST_MEASUREMENT 50.000000 14 1700000150
+  COLDEST_MEASUREMENT -10.000000 26 1700001714
+  BUSIEST_INTERVAL 28334469 783
+  TOP_STATIONS
+  75 10259 20.040815 256586.070000
+  28 10179 19.959493 255406.760000
+  49 10170 20.058893 257357.030000
+  97 10147 19.879934 253438.010000
+  56 10144 19.962152 253117.420000
+
+Observations:
+  - Workers balanced within 0.16% of each other (249857-250268 of 250000 expected each) --
+    station partitioning distributes load evenly at S=100, W=4.
+  - Achieved throughput (199,802.7 rec/s) tracked the requested --rate 200000 target closely
+    (0.1% under), confirming the rate-pacing mechanism works correctly across real network
+    latency, not just on loopback.
+  - client end-to-end (5.0049s) and server_elapsed (5.0042s) differ by ~0.7ms across two
+    physical nodes -- small relative to the 5s run, dominated by the artificial rate cap
+    rather than genuine network overhead at this batch size.
+  - Final analytics match the already-established-correct values for this dataset at
+    N=1,000,000 (this size never hits the known N=100,000 precision tie documented in
+    README's Correctness section).

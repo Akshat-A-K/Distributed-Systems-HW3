@@ -1,0 +1,9 @@
+==========================================
+SLURM_JOB_ID = 98598
+SLURM_NODELIST = node06
+SLURM_JOB_GPUS = 
+==========================================
+===== Test 1: hand-built tie-break dataset, 3 mapper chunks =====
+
+===== Test 2: freshly generated dataset (default), 7 mapper chunks =====
+

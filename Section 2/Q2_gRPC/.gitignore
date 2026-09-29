@@ -1,0 +1,8 @@
+.venv/
+build/
+__pycache__/
+*.pyc
+src/weather_stream_pb2.py
+src/weather_stream_pb2_grpc.py
+data/generated/
+results/raw/

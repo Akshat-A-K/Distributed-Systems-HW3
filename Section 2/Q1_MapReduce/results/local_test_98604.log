@@ -1,0 +1,74 @@
+==========================================
+SLURM_JOB_ID = 98604
+SLURM_NODELIST = node07
+SLURM_JOB_GPUS = 
+==========================================
+===== Test 1: hand-built tie-break dataset, 3 mapper chunks =====
+=== Step 1/7: Building mapper, reducer, weather_seq_reference, generate ===
+Build OK: mapper, reducer, weather_seq, generate
+
+=== Step 2/7: Preparing dataset ===
+Using provided dataset: data/tie_test_with_header.txt
+Parsed header: N=8 K=5 S=10
+
+=== Step 3/7: Splitting records into 3 mapper chunks ===
+Split into 3 chunk file(s) (requested 3; fewer is expected if N is small)
+
+=== Step 4/7: Running mapper.cpp independently on each chunk ===
+  mapper 1: 3 input records -> 6 summary lines
+  mapper 2: 3 input records -> 6 summary lines
+  mapper 3: 2 input records -> 4 summary lines
+
+=== Step 5/7: Concatenating + sorting by key (shuffle/sort simulation) ===
+Shuffled input: 16 total lines
+
+=== Step 6/7: Running reducer.cpp, then finalize.py --k 5 ===
+Final pipeline output written.
+
+=== Step 7/7: Comparing against weather_seq_reference ===
+
+PASS: /tmp/hw3_q8_local_test.3waX88/hadoop_final_output.txt matches /tmp/hw3_q8_local_test.3waX88/sequential_output.txt exactly.
+
+================================================================
+PASS: local pipeline (dataset -> 3 mappers -> shuffle/sort
+-> reducer -> finalize.py) matches weather_seq_reference exactly.
+Dataset: data/tie_test_with_header.txt (N=8 K=5 S=10)
+================================================================
+
+===== Test 2: freshly generated dataset (default), 7 mapper chunks =====
+=== Step 1/7: Building mapper, reducer, weather_seq_reference, generate ===
+Build OK: mapper, reducer, weather_seq, generate
+
+=== Step 2/7: Preparing dataset ===
+No dataset given -- generated /tmp/hw3_q8_local_test.irB3zm/generated_dataset.txt (N=200, K=5, S=12, seed=42)
+Parsed header: N=200 K=5 S=12
+
+=== Step 3/7: Splitting records into 7 mapper chunks ===
+Split into 7 chunk file(s) (requested 7; fewer is expected if N is small)
+
+=== Step 4/7: Running mapper.cpp independently on each chunk ===
+  mapper 1: 29 input records -> 41 summary lines
+  mapper 2: 29 input records -> 38 summary lines
+  mapper 3: 29 input records -> 42 summary lines
+  mapper 4: 29 input records -> 40 summary lines
+  mapper 5: 29 input records -> 40 summary lines
+  mapper 6: 29 input records -> 41 summary lines
+  mapper 7: 26 input records -> 38 summary lines
+
+=== Step 5/7: Concatenating + sorting by key (shuffle/sort simulation) ===
+Shuffled input: 280 total lines
+
+=== Step 6/7: Running reducer.cpp, then finalize.py --k 5 ===
+Final pipeline output written.
+
+=== Step 7/7: Comparing against weather_seq_reference ===
+
+PASS: /tmp/hw3_q8_local_test.irB3zm/hadoop_final_output.txt matches /tmp/hw3_q8_local_test.irB3zm/sequential_output.txt exactly.
+
+================================================================
+PASS: local pipeline (dataset -> 7 mappers -> shuffle/sort
+-> reducer -> finalize.py) matches weather_seq_reference exactly.
+Dataset: /tmp/hw3_q8_local_test.irB3zm/generated_dataset.txt (N=200 K=5 S=12)
+================================================================
+
+ALL LOCAL TESTS PASSED.
