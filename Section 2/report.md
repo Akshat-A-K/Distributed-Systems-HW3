@@ -98,16 +98,61 @@ dataset, via strict byte-for-byte `diff`, on:
 
 **One confirmed, explained discrepancy at N=100,000** — `AVERAGE_WIND_SPEED` differs from the
 oracle by exactly one unit in the 6th decimal (oracle: `60.115214`; pipeline: `60.115213`) on
-real RCE hardware, at every mapper-chunk count tested. Root cause, verified with exact rational
-arithmetic (`Fraction`/`Decimal`, no floating point) on the actual dataset: the true average is
-exactly `60.1152135` — a genuine floating-point halfway point. `kahan.hpp`'s `KahanSum::value()`
-narrows its internal `long double` accumulator to `double` before the mapper writes it out as
-text (the Hadoop Streaming stdin/stdout contract is a `double`-precision text protocol), so the
-reducer's final average division happens in `double` arithmetic, while the oracle stays in `long
-double` until its very last step. Different rounding paths landing on opposite sides of one exact
-halfway point is expected at *some* N — this is not a logic bug, and the same underlying dataset
-value independently reproduces the identical tie in Q2 (Section 3.8 below), with a different root
-cause but the same phenomenon.
+real RCE hardware, at every mapper-chunk count tested (1, 2, 4, 8). Because `benchmark.sh`
+generates one dataset per N and reuses it across all mapper-chunk counts, this is a single
+dataset-level event observed four times, not four independent failures — ruling out mapper-chunk
+count as a factor by construction.
+
+Root cause, verified with exact rational arithmetic (`Fraction`/`Decimal`, no floating point) on
+the actual dataset: the true average is exactly `60.1152135` — a genuine floating-point halfway
+point. `kahan.hpp`'s `KahanSum::value()` narrows its internal `long double` accumulator to
+`double` before the mapper writes it out as text (the Hadoop Streaming stdin/stdout contract is a
+`double`-precision text protocol), and the reducer's final average division
+(`sum_wind.value() / static_cast<double>(count)`, `reducer.cpp:170`) therefore happens entirely
+in `double` arithmetic. The oracle divides first and narrows last
+(`double avg_wind = sum_wind.sum / n;`, `weather_seq.cpp:145`, where `sum_wind.sum` is `long
+double`), so it stays in `long double` for the whole computation. Two different orderings of
+"round" and "divide" landing on opposite sides of one exact halfway point is standard
+floating-point behavior, not a logic bug.
+
+**Why N=1,000 and N=10,000 never show this, and N=1,000,000 is 10× less likely to than
+N=100,000.** `generate.cpp` writes every value with exactly two decimal digits, so each wind
+reading is `k/100` for an integer `k`, and the true average is `sum_k / (100·N)`. A tie at the
+6th decimal requires `sum_k · 20000 / N` to be an odd integer — a condition that depends on `N`
+alone for whether it is even *possible*, and on the realized `sum_k` for whether it actually
+occurs:
+
+| N | Can a 6-decimal halfway tie ever occur? | Condition on `sum_k` |
+|---|---|---|
+| 1,000 | **Never** (structurally impossible, for any dataset) | — |
+| 10,000 | **Never** (structurally impossible, for any dataset) | — |
+| 100,000 | Possible, ≈1-in-10 chance | `sum_k mod 10 == 5` |
+| 1,000,000 | Possible, ≈1-in-100 chance | `sum_k mod 100 == 50` |
+
+This was confirmed computationally (not just by hand) by testing the divisibility condition for
+each N. It explains the full pattern in one mechanism: N=1,000/10,000 are immune by
+construction; N=100,000 and N=1,000,000 are both *capable* of a tie, with the observed
+hit-at-100K/miss-at-1M outcome being the statistically likely result of 1-in-10 vs. 1-in-100
+odds, not a coincidence requiring a separate explanation.
+
+**Independently corroborated on this project's own dev machine.** This Mac is ARM64, where
+`sizeof(long double) == sizeof(double)` and both report 15 significant decimal digits — directly
+confirmed here, not assumed — so the oracle/pipeline precision gap this bug depends on cannot
+exist on this platform. Regenerating a fresh N=100,000 dataset locally (same seed, K, S) and
+running the full mapper → shuffle/sort → reducer → finalize pipeline against the oracle produced
+an **exact match**, consistent with the mechanism above: no long-double/double gap, no tie
+possible, regardless of dataset.
+
+**Relationship to the same tie in Q2 (Section 3.8 below).** `Q1_MapReduce/generate.cpp` and
+`weather_seq.cpp` are byte-identical to their copies under `Q2_gRPC/reference/`, and both
+correctness suites invoke them with the same parameters (`N=100000 K=5 S=100 seed=42`) on the
+same RCE cluster — so Q1 and Q2 are almost certainly processing the *same* generated dataset
+against the *same* long-double oracle value, not two independent random datasets that
+coincidentally tied. The meaningful result is not "the same tie happened twice by chance" but
+that **two independently-coded pipelines (a C++ MapReduce substitute and a Python gRPC
+coordinator), each with its own distinct double-narrowing mechanism, diverge from the same
+long-double oracle value in the same direction** — evidence that both are exhibiting the same
+real numerical phenomenon rather than two unrelated bugs.
 
 ### 2.5 Benchmark methodology **[SLURM-based substitute, single node]**
 
@@ -273,14 +318,16 @@ These three are measured differently and should not be conflated:
 - Real RCE hardware (job 98751, x86_64, single node): 244/248 passed. The 4 failures are all
   `AVERAGE_WIND_SPEED` at N=100,000, off by exactly one unit in the 6th decimal, at every worker
   count tested. Exact rational verification (`Fraction`/`Decimal`) on the real RCE dataset
-  confirms the true value is `60.1152135` — the identical exact halfway point found independently
-  in Q1 (Section 2.4) on the same underlying dataset. Root cause here: Python's `float` is a C
-  `double`; the oracle's Kahan sum runs in `long double` on `x86_64` (confirmed 80-bit — this
-  cannot occur on the ARM64 dev machine, where `long double == double`). Different summation
-  precision landing on opposite sides of the same exact tie — not a logic bug, and the same
-  dataset produces the identical numeric tie independently in two unrelated implementations
-  (Python double-precision Kahan here, a mapper→reducer text round-trip in Q1), which is itself
-  strong evidence this is a genuine floating-point property of the data, not a coincidence or a
+  confirms the true value is `60.1152135` — the same exact halfway point documented in Q1
+  (Section 2.4). Root cause here: Python's `float` is a C `double`; the oracle's Kahan sum runs
+  in `long double` on `x86_64` (confirmed 80-bit — this cannot occur on the ARM64 dev machine,
+  where `long double == double`, directly verified in Section 2.4). Different summation
+  precision landing on opposite sides of the same exact tie — not a logic bug. As established in
+  Section 2.4, `generate.cpp`/`weather_seq.cpp` are byte-identical between Q1 and Q2 and are
+  invoked with identical parameters on the same cluster, so this is the same dataset and the
+  same oracle value processed by two independently-coded pipelines (a C++ mapper/reducer
+  round-trip here vs. Python's `float` there), each landing on the wrong side of the tie via its
+  own distinct mechanism — evidence of one genuine floating-point property of the data, not a
   shared bug.
 
 ### 3.9 Benchmark results — **[Measured]**
@@ -439,10 +486,16 @@ shrinks from 1.6× to 1.05× over the same range).
   worker threads are bounded by Python's GIL (confirmed via measured CPU utilization staying at
   ~one core regardless of worker count). HW2's own MPI, by contrast, uses real OS processes, but
   its speedup is still capped by process-launch and communication overhead at these problem sizes.
-- **The N=100,000 precision tie is the single most important correctness finding in this report**,
-  because it independently reproduces in two unrelated implementations (a two-level Kahan sum in
-  C++, a Python double-precision Kahan sum) from the same underlying exact halfway value in the
-  dataset — strong evidence it is a genuine floating-point property, not a bug in either pipeline.
+- **The N=100,000 precision tie is the single most important correctness finding in this report.**
+  Q1 and Q2 process the same generated dataset against the same long-double oracle value (their
+  generator/oracle source is byte-identical, invoked with identical parameters on the same
+  cluster), yet each independently-coded pipeline — a two-level Kahan sum in C++, a Python
+  double-precision Kahan sum — lands on the same wrong side of the tie via its own distinct
+  mechanism. A modular-arithmetic check of the dataset's generation format further shows N=1,000
+  and N=10,000 can *never* exhibit this failure mode, while N=100,000 and N=1,000,000 can, with
+  the latter roughly 10× less likely to — matching the observed hit-at-100K/miss-at-1M pattern
+  exactly. Together this is strong evidence of a genuine floating-point property of the data, not
+  a bug in either pipeline.
 - **Q2's cross-node throughput cost (~23–26%) is a real, measured, first-class result**, not a
   footnote — it directly answers whether physical node separation matters for this system, rather
   than assuming either that it doesn't (same-node loopback) or that it dominates (untested

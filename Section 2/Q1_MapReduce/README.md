@@ -177,6 +177,18 @@ there it's Python `float` vs. the oracle's `long double`; here it's the mapper�
 round-trip's unavoidable `double` narrowing). No code was changed to chase this — see
 `results/rce_benchmark_98781.csv`.
 
+**Why this hits N=100,000 but not N=1,000/10,000/1,000,000.** `generate.cpp` writes every value
+to exactly 2 decimal digits, so each wind reading is `k/100` for integer `k`, and the true
+average is `sum_k / (100·N)`. A 6-decimal halfway tie requires `sum_k · 20000 / N` to be an odd
+integer — checked computationally for each benchmarked N: **impossible for any dataset** at
+N=1,000 or N=10,000 (the quotient is always even), **possible with ~1-in-10 odds** at N=100,000
+(`sum_k mod 10 == 5`), and **possible with ~1-in-100 odds** at N=1,000,000 (`sum_k mod 100 ==
+50`). The observed hit-at-100K/miss-at-1M result is the statistically expected outcome of those
+odds, not a separate coincidence. Independently corroborated on this project's ARM64 dev
+machine, where `long double == double` (confirmed via `sizeof`/`digits10`) so the bug's
+precondition cannot exist: a freshly regenerated N=100,000 dataset run through the full pipeline
+matched the oracle exactly.
+
 ## Hadoop execution
 
 **Status, as of this writing: blocked on a course-acknowledged RCE outage,

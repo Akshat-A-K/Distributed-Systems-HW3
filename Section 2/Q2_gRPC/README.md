@@ -315,7 +315,15 @@ it.
 dataset gave `60.1152135` — a perfect halfway point — which round-half-even correctly resolves to
 `.115214` (the oracle's long-double answer); the streaming system's double-precision Kahan sum
 landed a float's-width on the other side. This is the double-vs-long-double precision risk above,
-now empirically confirmed rather than theoretical, and not a logic bug.
+now empirically confirmed rather than theoretical, and not a logic bug. `Q2_gRPC/reference/`'s
+`generate.cpp`/`weather_seq.cpp` are byte-identical to Q1's copies and invoked with the same
+parameters (`N=100000 K=5 S=100 seed=42`) on the same cluster, so this is the same dataset and
+oracle value as Q1's tie (`Q1_MapReduce/README.md`), not an independent coincidence — the
+significant part is that two independently-coded pipelines each diverge from it the same way,
+via their own distinct double-narrowing mechanism. A modular-arithmetic check of the dataset's
+2-decimal generation format shows N=1,000/10,000 can never produce this failure mode at all,
+while N=1,000,000 is ~10× less likely to than N=100,000 — see `Q1_MapReduce/README.md` for the
+full derivation.
 
 **Not built**: isolated unit tests for `analytics_core.py` in a vacuum (e.g. a standalone
   `KahanSum` trace test). Given the time constraint, and that the 248-case matrix plus the
