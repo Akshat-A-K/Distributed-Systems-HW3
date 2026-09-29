@@ -37,14 +37,31 @@ if ! "$PY_EXEC" -c "import grpc, grpc_tools" >/dev/null 2>&1; then
     echo "[Notice] grpc modules not found for $PY_EXEC. Creating virtual environment in $SCRIPT_DIR/.venv..."
     "$PY_EXEC" -m venv "$SCRIPT_DIR/.venv" 2>/dev/null
     if [ -x "$SCRIPT_DIR/.venv/bin/pip" ]; then
-        echo "[Notice] Installing grpcio & grpcio-tools into .venv..."
+        echo "[Notice] Installing packages from requirements.txt into .venv..."
         "$SCRIPT_DIR/.venv/bin/pip" install --quiet --upgrade pip
-        "$SCRIPT_DIR/.venv/bin/pip" install --quiet grpcio grpcio-tools
+        if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
+            "$SCRIPT_DIR/.venv/bin/pip" install --quiet -r "$SCRIPT_DIR/requirements.txt"
+        else
+            "$SCRIPT_DIR/.venv/bin/pip" install --quiet grpcio grpcio-tools protobuf
+        fi
         PY_EXEC="$SCRIPT_DIR/.venv/bin/python"
     else
         echo "[Notice] Falling back to user pip install..."
-        pip install --user grpcio grpcio-tools 2>/dev/null || pip install grpcio grpcio-tools
+        if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
+            pip install --user -r "$SCRIPT_DIR/requirements.txt" 2>/dev/null || pip install -r "$SCRIPT_DIR/requirements.txt"
+        else
+            pip install --user grpcio grpcio-tools protobuf 2>/dev/null || pip install grpcio grpcio-tools protobuf
+        fi
     fi
 fi
+
+# 4. Check protobuf stub compatibility and auto-regenerate if needed
+(
+    cd "$SCRIPT_DIR"
+    if ! "$PY_EXEC" -c "import document_pb2, document_pb2_grpc" >/dev/null 2>&1; then
+        echo "[Notice] Compiling document.proto for current environment ($PY_EXEC)..."
+        "$PY_EXEC" -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. document.proto 2>/dev/null || true
+    fi
+)
 
 export PY_EXEC

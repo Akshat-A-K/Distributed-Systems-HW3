@@ -8,8 +8,7 @@ This repository contains our solutions for Distributed Systems Assignment 3.
 - `Section 3/`: Collaborative Document Editing using gRPC in Python (Server, Client CLI, and Update Streaming).
 - `hw3-final.pdf`: Assignment problem statement.
 - `rce_grpc_execution_guide.pdf`: Cluster execution guide.
-- `Mapreduce_distributed.sh`: Distributed MapReduce runner script.
-- `MapreduceForLocalTesting.sh`: Local bash script for testing MapReduce pipeline.
+- `MapreduceForLocalTesting.sh`: Local helper script for testing MapReduce pipeline.
 
 ## Section 1 Overview (Matrix Multiplication)
 Section 1 implements distributed matrix multiplication C = A x B using the Row-Row MapReduce approach:
