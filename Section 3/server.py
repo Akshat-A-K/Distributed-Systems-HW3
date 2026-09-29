@@ -75,7 +75,11 @@ def serve(address):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers = 20))
     document_pb2_grpc.add_DocumentServiceServicer_to_server(DocumentService(), server)
     try:
-        server.add_insecure_port(address)
+        port_bound = server.add_insecure_port(address)
+        if port_bound == 0:
+            print(f"[Error] Failed to bind to {address}: port already in use or permission denied.")
+            print("[Tip] Try specifying another port, e.g. python server.py 53408")
+            return
     except Exception as e:
         print(f"Failed to bind to {address}: {e}")
         return
