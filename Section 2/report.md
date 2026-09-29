@@ -90,6 +90,7 @@ data this size would add framework overhead without addressing anything genuinel
 
 Verified against `weather_seq_reference` (HW2's unmodified sequential program) on the identical
 dataset, via strict byte-for-byte `diff`, on:
+
 - Local machine (macOS, ARM64): all test datasets, including hand-built adversarial tie-break
   cases (2-way/3-way ties on hottest/coldest/busiest-interval/top-K) and generated datasets up to
   N=1,000,000 — all passed.
@@ -174,6 +175,7 @@ gRPC surface.
 
 At minimum the assignment requires streaming ingestion and queries for current analytics. The
 interface provides:
+
 - `StreamRecords(stream IngestMessage) returns (IngestSummary)` — client-streaming; the first
   message is a header (N/K/S), the rest are record batches; returns only after every record sent
   has been applied (a drain barrier), so a query issued right after this returns is guaranteed to
@@ -191,6 +193,7 @@ Each worker owns a shard of state (`ShardState`): Kahan sums, running min/max, e
 count, a running hottest/coldest candidate, and per-station/per-interval maps for its shard. Two
 record-distribution strategies were implemented and compared, satisfying the assignment's
 explicit requirement to investigate this dimension:
+
 - **Station-based partitioning** (default): `station_id % W`. Every record for a given station
   always lands on the same worker, so per-station sums are built in file order — same order as
   the sequential reference, byte-identical results guaranteed by construction.
@@ -212,6 +215,7 @@ asks for "a useful view of the current state," not point-in-time atomicity acros
 ### 3.5 Dashboard — how it satisfies Q2's CLI dashboard requirement
 
 `dashboard.py` is a CLI-only client (no web interface) with two modes:
+
 - **Live mode** (default): polls `GetAnalytics` every `--interval` seconds (default 1.0 s) and
   redraws an ingestion-progress header — records applied/expected with a percentage and progress
   bar, backlog, active/completed stream counts, worker count and partition mode, and one line per
@@ -354,20 +358,35 @@ oracle exactly.
 All plots are regenerated directly from the CSVs referenced above — no measured value is altered
 in any plot; only labels, titles, and presentation were changed for clarity.
 
-- `Q1_MapReduce/results/plots/runtime_comparison.png` — wall-clock time vs. task count, MPI (HW2)
-  vs. the MapReduce SLURM-based substitute, one panel per input size. Caption: log-scale y-axis;
-  dotted line marks the HW2 sequential baseline for reference.
-- `Q1_MapReduce/results/plots/task_count_overhead.png` — each system's own time relative to its
-  task count = 1 run, across all three input sizes. Caption: values above 1.0 indicate a task
-  count that is slower than running a single task.
-- `Q2_gRPC/results/plots/e1_workers.png` — throughput and server CPU utilization vs. worker
-  count, both partition strategies. Caption: the dotted line at 100% marks one CPU core.
-- `Q2_gRPC/results/plots/e2_granularity.png` — throughput and query p95 latency vs. batch size.
-  Caption: x-axis is log-scale.
-- `Q2_gRPC/results/plots/e3_concurrent_queries.png` — ingestion throughput and query latency
-  percentiles (p50/p95/p99) vs. concurrent query client count.
-- `Q2_gRPC/results/plots/e1_single_vs_multinode.png` — single-node vs. cross-node throughput,
-  both partition strategies, same worker-count sweep.
+![Wall-clock time vs. task count, MPI (HW2) vs. the MapReduce SLURM-based substitute](Q1_MapReduce/results/plots/runtime_comparison.png)
+
+**Figure 1.** Wall-clock time vs. task count, one panel per input size. Log-scale y-axis; the
+dotted line marks the HW2 sequential baseline for reference.
+
+![Relative overhead vs. task count for both systems](Q1_MapReduce/results/plots/task_count_overhead.png)
+
+**Figure 2.** Each system's own wall-clock time relative to its task-count = 1 run, across all
+three input sizes. Values above 1.0 indicate a task count that is slower than a single task.
+
+![Throughput and server CPU utilization vs. worker count](Q2_gRPC/results/plots/e1_workers.png)
+
+**Figure 3.** Ingestion throughput and server CPU utilization vs. worker count, both partition
+strategies. The dotted line at 100% marks one CPU core.
+
+![Throughput and query p95 latency vs. batch size](Q2_gRPC/results/plots/e2_granularity.png)
+
+**Figure 4.** Throughput and query p95 latency vs. batch size (streaming granularity). X-axis is
+log-scale.
+
+![Ingestion throughput and query latency percentiles vs. concurrent query clients](Q2_gRPC/results/plots/e3_concurrent_queries.png)
+
+**Figure 5.** Ingestion throughput and query latency percentiles (p50/p95/p99) vs. concurrent
+query client count.
+
+![Single-node vs. cross-node throughput comparison](Q2_gRPC/results/plots/e1_single_vs_multinode.png)
+
+**Figure 6.** Single-node vs. cross-node throughput, both partition strategies, same worker-count
+sweep as Figure 3.
 
 ---
 
